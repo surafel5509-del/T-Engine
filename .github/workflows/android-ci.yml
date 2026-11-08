@@ -1,0 +1,122 @@
+name: Build T-Engine Android APK
+
+on:
+  push:
+    branches: [ "**" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    name: Test Engine & Build Debug/Release APKs
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle Cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Accept Android SDK Licenses
+        run: |
+          chmod +x gradlew
+          if [ -n "${ANDROID_HOME:-}" ] && [ -x "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          fi
+
+      - name: Run T-Engine Core & Android Unit Tests
+        run: ./gradlew :tengine-core:test testDebugUnitTest --stacktrace
+
+      - name: Upload Engine Unit Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: T-Engine-Test-Reports
+          path: "**/build/reports/tests/**"
+
+      - name: Prepare Release Signing Keystore
+        run: |
+          KEYSTORE_FILE="${RUNNER_TEMP}/tengine-release.p12"
+          keytool -genkeypair -v \
+            -keystore "${KEYSTORE_FILE}" \
+            -storetype PKCS12 \
+            -alias tengine \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass tengine123 \
+            -keypass tengine123 \
+            -dname "CN=T-Engine 2D, OU=GameEngine, O=TEngine, L=AddisAbaba, C=ET"
+          echo "ANDROID_KEYSTORE_PATH=${KEYSTORE_FILE}" >> "${GITHUB_ENV}"
+          echo "ANDROID_KEYSTORE_PASSWORD=tengine123" >> "${GITHUB_ENV}"
+          echo "ANDROID_KEY_ALIAS=tengine" >> "${GITHUB_ENV}"
+          echo "ANDROID_KEY_PASSWORD=tengine123" >> "${GITHUB_ENV}"
+
+      - name: Build Debug & Signed Release APKs
+        run: ./gradlew :app:assembleDebug :app:assembleRelease --stacktrace
+
+      - name: Stage & Verify Built APKs
+        run: |
+          mkdir -p dist-apks
+          cp app/build/outputs/apk/debug/app-debug.apk dist-apks/T-Engine-2D-Debug.apk
+          cp app/build/outputs/apk/release/app-release.apk dist-apks/T-Engine-2D-Release-Signed.apk
+          cd dist-apks
+          sha256sum *.apk > SHA256SUMS.txt
+          ls -lh *.apk
+
+          {
+            echo "## T-Engine 2D Android APK Build Summary"
+            echo ""
+            echo "| Artifact | File | Size | SHA-256 |"
+            echo "| :--- | :--- | :--- | :--- |"
+            for f in *.apk; do
+              sz=$(du -h "$f" | cut -f1)
+              sh=$(sha256sum "$f" | cut -d' ' -f1)
+              echo "| Android APK | \`$f\` | **$sz** | \`$sh\` |"
+            done
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload T-Engine Debug APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: T-Engine-2D-Debug-APK
+          path: dist-apks/T-Engine-2D-Debug.apk
+          retention-days: 30
+
+      - name: Upload T-Engine Signed Release APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: T-Engine-2D-Release-APK
+          path: |
+            dist-apks/T-Engine-2D-Release-Signed.apk
+            dist-apks/SHA256SUMS.txt
+          retention-days: 30
+
+      - name: Publish APKs to GitHub Release (on v* tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            dist-apks/T-Engine-2D-Debug.apk \
+            dist-apks/T-Engine-2D-Release-Signed.apk \
+            dist-apks/SHA256SUMS.txt \
+            --generate-notes \
+            --title "T-Engine 2D ${GITHUB_REF_NAME}" || \
+          gh release upload "${GITHUB_REF_NAME}" \
+            dist-apks/T-Engine-2D-Debug.apk \
+            dist-apks/T-Engine-2D-Release-Signed.apk \
+            dist-apks/SHA256SUMS.txt --clobber

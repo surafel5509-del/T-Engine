@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="tengine_bg">#111318</color>
+    <color name="tengine_primary">#2B8AF7</color>
+    <color name="tengine_accent">#1AD1E5</color>
+</resources>

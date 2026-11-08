@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "name": "Bundled Starter Scene",
+  "gravity": { "x": 0, "y": -18 },
+  "rootObjects": [
+    {
+      "uuid": "00000000-0000-0000-0000-000000000001",
+      "name": "MainCamera",
+      "tag": "Untagged",
+      "layer": 0,
+      "isStatic": false,
+      "activeSelf": true,
+      "transform": {
+        "position": { "x": 0, "y": 1 },
+        "rotationDeg": 0,
+        "scale": { "x": 1, "y": 1 },
+        "zDepth": 0
+      },
+      "components": [
+        {
+          "type": "Camera2D",
+          "data": {
+            "enabled": true,
+            "orthographicSize": 5.5,
+            "zoom": 1,
+            "backgroundColor": { "r": 0.06, "g": 0.08, "b": 0.14, "a": 1 },
+            "isMainCamera": true,
+            "followSmoothSpeed": 7.5,
+            "followOffset": { "x": 0, "y": 0.8 }
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "uuid": "00000000-0000-0000-0000-000000000002",
+      "name": "StarterGround",
+      "tag": "Untagged",
+      "layer": 0,
+      "isStatic": true,
+      "activeSelf": true,
+      "transform": {
+        "position": { "x": 0, "y": -2.5 },
+        "rotationDeg": 0,
+        "scale": { "x": 1, "y": 1 },
+        "zDepth": 0
+      },
+      "components": [
+        {
+          "type": "SpriteRenderer",
+          "data": {
+            "enabled": true,
+            "spriteName": "WhiteSquare",
+            "color": { "r": 0.24, "g": 0.78, "b": 0.45, "a": 1 },
+            "useCustomSize": true,
+            "customSize": { "x": 12, "y": 1 },
+            "flipX": false,
+            "flipY": false,
+            "sortingLayer": "TERRAIN",
+            "orderInLayer": 0,
+            "ySort": false,
+            "blendMode": "ALPHA",
+            "isLit": false
+          }
+        },
+        {
+          "type": "Rigidbody2D",
+          "data": {
+            "enabled": true,
+            "bodyType": "STATIC",
+            "mass": 1
+          }
+        },
+        {
+          "type": "BoxCollider2D",
+          "data": {
+            "enabled": true,
+            "size": { "x": 12, "y": 1 },
+            "offset": { "x": 0, "y": 0 },
+            "isTrigger": false,
+            "friction": 0.5,
+            "restitution": 0.1,
+            "density": 1
+          }
+        }
+      ],
+      "children": []
+    }
+  ]
+}
