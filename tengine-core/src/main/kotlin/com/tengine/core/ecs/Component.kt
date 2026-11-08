@@ -62,6 +62,7 @@ abstract class Component(componentName: String = "Component") : TObject(componen
 
     fun <T : Component> getComponents(type: KClass<T>): List<T> = gameObject.getComponents(type)
 
+    @JvmName("getComponentsOfType")
     inline fun <reified T : Component> getComponents(): List<T> = getComponents(T::class)
 
     // Lifecycle hooks

@@ -115,6 +115,7 @@ class GameObject(
         return result
     }
 
+    @JvmName("getComponentsOfType")
     inline fun <reified T : Component> getComponents(): List<T> = getComponents(T::class)
 
     fun <T : Component> getComponentInChildren(type: KClass<T>, includeInactive: Boolean = false): T? {

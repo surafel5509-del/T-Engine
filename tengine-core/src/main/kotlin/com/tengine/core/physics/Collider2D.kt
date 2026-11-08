@@ -335,20 +335,20 @@ class PolygonCollider2D(
     var localPoints: List<Vector2> = Geometry2D.convexHull(points)
         set(value) {
             field = if (value.size >= 3) Geometry2D.convexHull(value) else field
-            worldVertices = Array(field.size) { Vector2() }
+            cachedWorldVertices = Array(field.size) { Vector2() }
             invalidateCache()
         }
 
-    private var worldVertices: Array<Vector2> = Array(localPoints.size) { Vector2() }
+    private var cachedWorldVertices: Array<Vector2> = Array(localPoints.size) { Vector2() }
 
     fun getWorldVertices(): Array<Vector2> {
         val _aabb = worldAABB
-        return worldVertices
+        return cachedWorldVertices
     }
 
     override fun recalculateWorldGeometry(outAABB: AABB) {
-        if (worldVertices.size != localPoints.size) {
-            worldVertices = Array(localPoints.size) { Vector2() }
+        if (cachedWorldVertices.size != localPoints.size) {
+            cachedWorldVertices = Array(localPoints.size) { Vector2() }
         }
         var minX = Float.POSITIVE_INFINITY
         var minY = Float.POSITIVE_INFINITY
@@ -368,15 +368,15 @@ class PolygonCollider2D(
                 wx = lx
                 wy = ly
             }
-            worldVertices[i].set(wx, wy)
+            cachedWorldVertices[i].set(wx, wy)
             minX = min(minX, wx)
             minY = min(minY, wy)
             maxX = max(maxX, wx)
             maxY = max(maxY, wy)
         }
         // If mirrored scale flipped winding, ensure CCW order
-        if (Geometry2D.signedArea(worldVertices.asList()) < 0f) {
-            worldVertices.reverse()
+        if (Geometry2D.signedArea(cachedWorldVertices.asList()) < 0f) {
+            cachedWorldVertices.reverse()
         }
         outAABB.set(minX, minY, maxX, maxY)
     }
