@@ -19,33 +19,42 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17 (Temurin)
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Gradle Cache
-        uses: gradle/actions/setup-gradle@v4
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
 
       - name: Accept Android SDK Licenses
         run: |
           chmod +x gradlew
-          if [ -n "${ANDROID_HOME:-}" ] && [ -x "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" ]; then
-            yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          fi
+          yes | sdkmanager --licenses > /dev/null || true
+
+      - name: Set up Gradle Cache
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Run T-Engine Core & Android Unit Tests
-        run: ./gradlew :tengine-core:test testDebugUnitTest --stacktrace
+        shell: bash
+        run: |
+          set -o pipefail
+          if ! ./gradlew :tengine-core:test testDebugUnitTest --stacktrace 2>&1 | tee test-build.log; then
+            details=$(grep -E '^e: |FAILURE:|Caused by:|What went wrong:|^\* |> |FAILED' test-build.log | tail -n 35 | tr '\n' ' ; ')
+            echo "::error title=Unit Test / Compile Failure::${details}"
+            exit 1
+          fi
 
       - name: Upload Engine Unit Test Reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: T-Engine-Test-Reports
           path: "**/build/reports/tests/**"
+          if-no-files-found: ignore
 
       - name: Prepare Release Signing Keystore
         run: |
@@ -66,7 +75,14 @@ jobs:
           echo "ANDROID_KEY_PASSWORD=tengine123" >> "${GITHUB_ENV}"
 
       - name: Build Debug & Signed Release APKs
-        run: ./gradlew :app:assembleDebug :app:assembleRelease --stacktrace
+        shell: bash
+        run: |
+          set -o pipefail
+          if ! ./gradlew :app:assembleDebug :app:assembleRelease --stacktrace 2>&1 | tee apk-build.log; then
+            details=$(grep -E '^e: |FAILURE:|Caused by:|What went wrong:|^\* |> ' apk-build.log | tail -n 35 | tr '\n' ' ; ')
+            echo "::error title=APK Build Failure::${details}"
+            exit 1
+          fi
 
       - name: Stage & Verify Built APKs
         run: |
@@ -76,6 +92,10 @@ jobs:
           cd dist-apks
           sha256sum *.apk > SHA256SUMS.txt
           ls -lh *.apk
+
+          debug_sz=$(du -h T-Engine-2D-Debug.apk | cut -f1)
+          rel_sz=$(du -h T-Engine-2D-Release-Signed.apk | cut -f1)
+          echo "::notice title=APKs Built Successfully::T-Engine-2D-Debug.apk (${debug_sz}), T-Engine-2D-Release-Signed.apk (${rel_sz})"
 
           {
             echo "## T-Engine 2D Android APK Build Summary"
@@ -90,14 +110,14 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Upload T-Engine Debug APK Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: T-Engine-2D-Debug-APK
           path: dist-apks/T-Engine-2D-Debug.apk
           retention-days: 30
 
       - name: Upload T-Engine Signed Release APK Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: T-Engine-2D-Release-APK
           path: |
